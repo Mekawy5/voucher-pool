@@ -35,7 +35,8 @@ model VoucherCode {
   specialOfferId Int
   customer       Customer     @relation(fields: [customerId], references: [id])
   customerId     Int
-  usetAt         DateTime?
+  usedAt         DateTime?
   code           String       @unique
+  expirationDate DateTime
   createdAt      DateTime     @default(now())
 }
