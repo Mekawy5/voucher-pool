@@ -8,6 +8,9 @@ services:
       - .:/usr/src/app
     env_file:
     - .env
+    environment:
+      DATABASE_URL: postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}?schema=public
+
     command: npm run start:dev
     depends_on:
       - redis
