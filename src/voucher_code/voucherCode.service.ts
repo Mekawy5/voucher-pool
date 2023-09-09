@@ -34,8 +34,12 @@ export class VoucherCodeService {
 
     const expirationDate = new Date(expiration_date).toISOString();
 
-    // Generate voucher codes for each customer 
-    await this.insertCustomerVoucherCodes(special_offer_id, expirationDate);
+    // Begin the transaction
+    const voucherCodes = await this.insertCustomerVoucherCodes(special_offer_id, expirationDate);
+
+    // Run the transaction
+    await this.storage.$transaction(voucherCodes);
+
 
     return {
       message: "Voucher Codes Created."
@@ -109,6 +113,8 @@ export class VoucherCodeService {
 
   private async insertCustomerVoucherCodes(special_offer_id: number, expirationDate: string) {
     const customers = await this.storage.customer.findMany();
+    const voucherCodeCreations = [];
+
     for (const customer of customers) {
       const existingVoucher = await this.storage.voucherCode.findFirst({
         where: {
@@ -121,7 +127,7 @@ export class VoucherCodeService {
       });
 
       if (!existingVoucher) {
-        await this.storage.voucherCode.create({
+        const voucherCodeCreation = this.storage.voucherCode.create({
           data: {
             code: await this.generateUniqueCode(),
             customerId: customer.id,
@@ -129,8 +135,11 @@ export class VoucherCodeService {
             expirationDate: expirationDate
           },
         });
+        voucherCodeCreations.push(voucherCodeCreation);
       }
     }
+
+    return voucherCodeCreations;
   }
 
   async generateUniqueCode(retryCount = 0): Promise<string> {
