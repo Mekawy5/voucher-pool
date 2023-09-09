@@ -2,6 +2,7 @@ import { Test, TestingModule } from '@nestjs/testing';
 import { VoucherCodeService } from './voucherCode.service';
 import { Storage } from '../storage.service';
 import { CreateVoucherDto } from './createVoucher.dto';
+import { BadRequestException } from '@nestjs/common';
 
 describe('VoucherCodeService', () => {
   let service: VoucherCodeService;
@@ -102,5 +103,45 @@ describe('VoucherCodeService', () => {
         'Unable to generate a unique code',
       );
     });
+
+    it('should throw BadRequestException for an invalid code', async () => {
+      jest.spyOn(storage.voucherCode, 'findFirst')
+      .mockResolvedValue(null);
+
+      const redeemVoucherDto = {
+        code: "ABC123",
+        email: "test@test.com",
+      }
+
+      await expect(service.RedeemVoucherCode(redeemVoucherDto)).rejects.toThrow(BadRequestException);
+    });
+
+    it('should redeem a valid voucher code', async () => {
+      const redeemVoucherDto = {
+        code: 'ABC123',
+        email: 'test@test.com',
+      };
+
+      const voucherCode = {
+        id: 1,
+        specialOffer: {
+          discount: 10,
+        },
+      };
+
+      service.findVoucherCode = jest.fn().mockResolvedValue(voucherCode);
+
+      service.useVoucherCode = jest.fn();
+
+      const result = await service.RedeemVoucherCode(redeemVoucherDto);
+
+      expect(result).toEqual({
+        message: 'Voucher Code Redeemed',
+        discount: voucherCode.specialOffer.discount,
+      });
+      expect(service.findVoucherCode).toHaveBeenCalledWith(redeemVoucherDto.code, redeemVoucherDto.email);
+      expect(service.useVoucherCode).toHaveBeenCalledWith(voucherCode.id);
+    });
+
   });
 });
