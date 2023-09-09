@@ -59,6 +59,25 @@ export class VoucherCodeService {
     }
   }
 
+  async GetVoucherCodes(email: string) {
+    return await this.storage.voucherCode.findMany({
+      where: {
+        customer: {
+          email: email,
+        },
+      },
+      select: {
+        code: true,
+        usedAt: true,
+        specialOffer: {
+          select: {
+            name: true,
+          },
+        },
+      },
+    });
+  }
+
   async findVoucherCode(code: string, email: string) {
     return await this.storage.voucherCode.findFirst({
       where: {
