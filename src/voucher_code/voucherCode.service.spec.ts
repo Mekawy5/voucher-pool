@@ -1,22 +1,22 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { VoucherCodeService } from './voucherCode.service';
-import { PrismaService } from '../prisma.service';
-import { CreateVoucherDto } from './createVoucherDto.service';
+import { Storage } from '../storage.service';
+import { CreateVoucherDto } from './createVoucher.dto';
 
 describe('VoucherCodeService', () => {
   let service: VoucherCodeService;
-  let prismaService: PrismaService;
+  let storage: Storage;
 
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         VoucherCodeService,
-        PrismaService,
+        Storage,
       ],
     }).compile();
 
     service = module.get<VoucherCodeService>(VoucherCodeService);
-    prismaService = module.get<PrismaService>(PrismaService);
+    storage = module.get<Storage>(Storage);
   });
 
   describe('generateVoucherCode', () => {
@@ -38,7 +38,7 @@ describe('VoucherCodeService', () => {
       };
 
       jest
-        .spyOn(prismaService.specialOffer, 'findUnique')
+        .spyOn(storage.specialOffer, 'findUnique')
         .mockResolvedValue(null);
 
       await expect(
@@ -48,7 +48,7 @@ describe('VoucherCodeService', () => {
 
     it('should generate voucher codes of a specific length', async () => {
       jest
-        .spyOn(prismaService.voucherCode, 'findUnique')
+        .spyOn(storage.voucherCode, 'findUnique')
         .mockResolvedValue(null);
 
       const voucherCode = await service.generateUniqueCode();
@@ -58,7 +58,7 @@ describe('VoucherCodeService', () => {
 
     it('should generate unique voucher codes', async () => {
       jest
-        .spyOn(prismaService.voucherCode, 'findUnique')
+        .spyOn(storage.voucherCode, 'findUnique')
         .mockResolvedValue(null);
 
       const generatedCodes = new Set<string>();
@@ -77,7 +77,7 @@ describe('VoucherCodeService', () => {
         .mockResolvedValueOnce(null)
         .mockResolvedValueOnce({ code: 'ABC123' });
       jest
-        .spyOn(prismaService.voucherCode, 'findUnique')
+        .spyOn(storage.voucherCode, 'findUnique')
         .mockImplementation(existingCode);
 
       const result = await service.generateUniqueCode();
@@ -96,7 +96,7 @@ describe('VoucherCodeService', () => {
         expirationDate: new Date(),
         createdAt: new Date(),
       };
-      jest.spyOn(prismaService.voucherCode, 'findUnique').mockResolvedValue(existingCode);
+      jest.spyOn(storage.voucherCode, 'findUnique').mockResolvedValue(existingCode);
 
       await expect(service.generateUniqueCode()).rejects.toThrowError(
         'Unable to generate a unique code',

@@ -1,6 +1,7 @@
 import { Controller, Post, Body } from '@nestjs/common';
 import { VoucherCodeService } from './voucherCode.service';
-import { CreateVoucherDto } from './createVoucherDto.service';
+import { CreateVoucherDto } from './createVoucher.dto';
+import { RedeemVoucherDto } from './redeemVoucher.dto';
 
 @Controller('voucher-codes')
 export class VoucherCodeController {
@@ -9,5 +10,10 @@ export class VoucherCodeController {
   @Post()
   generateVoucherCode(@Body() createVoucherDto: CreateVoucherDto) {
     return this.voucherCodeService.generateVoucherCode(createVoucherDto);
+  }
+
+  @Post('/redeem')
+  redeemVoucherCode(@Body() redeemVoucherDto: RedeemVoucherDto) {
+    return this.voucherCodeService.RedeemVoucherCode(redeemVoucherDto);
   }
 }

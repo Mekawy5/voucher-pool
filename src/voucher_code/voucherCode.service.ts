@@ -1,8 +1,9 @@
 import { BadRequestException, Injectable } from '@nestjs/common';
-import { PrismaService } from '../prisma.service';
-import { CreateVoucherDto } from './createVoucherDto.service';
+import { Storage } from '../storage.service';
+import { CreateVoucherDto } from './createVoucher.dto';
 import { init } from '@paralleldrive/cuid2';
 import * as os from 'os';
+import { RedeemVoucherDto } from './redeemVoucher.dto';
 
 
 @Injectable()
@@ -13,7 +14,7 @@ export class VoucherCodeService {
     fingerprint: os.hostname(),
   });
 
-  constructor(private prisma: PrismaService) {}
+  constructor(private storage: Storage) {}
 
   async generateVoucherCode(createVoucherDto: CreateVoucherDto) {
     const { special_offer_id, expiration_date } = createVoucherDto;
@@ -23,7 +24,7 @@ export class VoucherCodeService {
     }
 
     // Check if the Special offer exists
-    const specialOffer = await this.prisma.specialOffer.findUnique({
+    const specialOffer = await this.storage.specialOffer.findUnique({
       where: { id: special_offer_id },
     });
 
@@ -34,9 +35,63 @@ export class VoucherCodeService {
     const expirationDate = new Date(expiration_date).toISOString();
 
     // Generate voucher codes for each customer 
-    const customers = await this.prisma.customer.findMany();
+    await this.insertCustomerVoucherCodes(special_offer_id, expirationDate);
+
+    return {
+      message: "Voucher Codes Created."
+    };
+  }
+
+  async RedeemVoucherCode(redeemVoucherDto: RedeemVoucherDto) {
+    const { code, email } = redeemVoucherDto;
+
+    const voucherCode = await this.findVoucherCode(code, email);
+
+    if (!voucherCode) {
+      throw new BadRequestException('Invalid code');
+    }
+
+    await this.useVoucherCode(voucherCode.id);
+
+    return {
+      "message": "Voucher Code Redeemed",
+      "discount": voucherCode.specialOffer.discount
+    }
+  }
+
+  async findVoucherCode(code: string, email: string) {
+    return await this.storage.voucherCode.findFirst({
+      where: {
+        code: code,
+        customer: {
+          email: email,
+        },
+        usedAt: null,
+        expirationDate: {
+          gte: new Date(),
+        },
+      },
+      include: {
+        specialOffer: true,
+      },
+    });
+  }
+
+  async useVoucherCode(voucherCodeId: number) {
+    await this.storage.voucherCode.update({
+      where: {
+        id: voucherCodeId,
+      },
+      data: {
+        usedAt: new Date(),
+      },
+    });
+  }
+
+  private async insertCustomerVoucherCodes(special_offer_id: number, expirationDate: string) {
+    const customers = await this.storage.customer.findMany();
     for (const customer of customers) {
-      await this.prisma.voucherCode.create({
+      await this.storage.voucherCode.create({
         data: {
           code: await this.generateUniqueCode(),
           customerId: customer.id,
@@ -45,18 +100,15 @@ export class VoucherCodeService {
         },
       });
     }
-
-    return {
-      message: "Voucher Codes Created."
-    };
   }
+
   async generateUniqueCode(retryCount = 0): Promise<string> {
     if (retryCount >= 5) {
       throw new Error('Unable to generate a unique code');
     }
   
     const code = this.createId();
-    const existingCode = await this.prisma.voucherCode.findUnique({ where: { code } });
+    const existingCode = await this.storage.voucherCode.findUnique({ where: { code } });
   
     if (existingCode) {
       return this.generateUniqueCode(retryCount + 1);
