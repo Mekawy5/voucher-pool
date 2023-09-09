@@ -91,14 +91,26 @@ export class VoucherCodeService {
   private async insertCustomerVoucherCodes(special_offer_id: number, expirationDate: string) {
     const customers = await this.storage.customer.findMany();
     for (const customer of customers) {
-      await this.storage.voucherCode.create({
-        data: {
-          code: await this.generateUniqueCode(),
-          customerId: customer.id,
-          specialOfferId: special_offer_id,
-          expirationDate: expirationDate
+      const existingVoucher = await this.storage.voucherCode.findFirst({
+        where: {
+          AND: [
+            { customerId: customer.id },
+            { specialOfferId: special_offer_id },
+            { usedAt: null },
+          ],
         },
       });
+
+      if (!existingVoucher) {
+        await this.storage.voucherCode.create({
+          data: {
+            code: await this.generateUniqueCode(),
+            customerId: customer.id,
+            specialOfferId: special_offer_id,
+            expirationDate: expirationDate
+          },
+        });
+      }
     }
   }
 
